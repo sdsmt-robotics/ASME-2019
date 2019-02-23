@@ -26,6 +26,12 @@ const uint32_t CONTROL = 0x040080;
 //ID used for sending the enable frame
 const uint32_t ENABLE = 0x0401BF;
 
+//Mortor Controller Calibraiton
+const int CALIBRAITON_FL_FOR = 24;
+const int CALIBRATION_FL_REV = 32;
+const int CALIBRATION_BR_FOR = 50;
+const int CALIBRATION_BR_REV = 40;
+
 //build the control CANbus frame.  The first three bytes is the demand value, 
 //which typically is the output value [-1023,+1023]
 
@@ -46,6 +52,10 @@ int queue_len = 0;
 int current_vals[12];
 
 int axis = 0;
+
+//Test Time
+int timer = 0;
+int oldspeed;
 
 void setup()
 {
@@ -83,12 +93,12 @@ int SpeedControl(double SPD) //Creates a exponential growth speed
 {
   int NewSPD;
   double temp2 = SPD / 500.0;
-  double temp =pow(temp2,2);
+  double temp = pow(temp2,2);
   NewSPD = temp * SPD;
   return NewSPD;
 }
 
-void funcTest(unsigned char data[8], int SPD) //Allows Can Bus to Read speeds.
+void byte_encoder(unsigned char data[8], int SPD) //Allows Can Bus to Read speeds.
 {
   //encode output into bytes
   byte first_byte = (byte)(SPD >> 0x10);
@@ -142,31 +152,73 @@ void loop()
   FLs = verL - horL - rotL;
   BLs = verL + horL - rotL; 
 
+  if (FLs > 0)
+  {
+    FLs += CALIBRAITON_FL_FOR;
+  }
+  if (FRs < 0)
+  {
+    FLs -= CALIBRATION_FL_REV;
+  }
+
+  if (BRs > 0)
+  {
+    BRs += CALIBRATION_BR_FOR;
+  }
+  if (BRs < 0)
+  {
+    BRs -= CALIBRATION_BR_REV;
+  }
+
   FRs = constrain(FRs, -500, 500); //Restricts The output to motor
   BRs = constrain(BRs, -500, 500);
   FLs = constrain(FLs, -500, 500);
   BLs = constrain(BLs, -500, 500);
 
   //Outputs the speeds to each motor.
-  funcTest(dataFL, FLs);
+  byte_encoder(dataFL, FLs);
   CAN.sendMsgBuf(CONTROL | controller_one | 0x01040000, 1, 8, dataFL); //0x01040000 for Victor, 0x02040000 for Talon
   Serial.print(FLs);
   Serial.print("  ");
   
-  funcTest(dataFR, FRs);
+  byte_encoder(dataFR, FRs);
   CAN.sendMsgBuf(CONTROL | controller_two | 0x01040000, 1, 8, dataFR); //0x01040000 for Victor, 0x02040000 for Talon
   Serial.print(FRs);
   Serial.print("  ");
   
-  funcTest(dataBR, BRs);
+  byte_encoder(dataBR, BRs);
   CAN.sendMsgBuf(CONTROL | controller_three | 0x01040000, 1, 8, dataBL); //0x01040000 for Victor, 0x02040000 for Talon
   Serial.print(BLs);
   Serial.print("  ");
   
-  funcTest(dataBL, BLs);
+  byte_encoder(dataBL, BLs);
   CAN.sendMsgBuf(CONTROL | controller_four | 0x01040000, 1, 8, dataBR); //0x01040000 for Victor, 0x02040000 for Talon
-  Serial.println(BRs); 
+  Serial.print(BRs); 
   
   CAN.sendMsgBuf(ENABLE, 1, 8, enable);
+  
+  Serial.print("  ");
+  Serial.print(timer);
+  Serial.print("  ");
+  Serial.println(oldspeed);
+
+  //Deadman's switch for bot movement
+  if (timer == 0)
+  {
+    oldspeed = FLs;
+  }
+  timer = timer + 1;
+  if (timer > 100)
+  {
+    if (oldspeed == FLs)
+    {
+      current_vals[1] = 0;
+      current_vals[2] = 0;
+      current_vals[3] = 0;
+      
+    }
+    timer = 0;
+  }
+ 
   delay(20);
 }
