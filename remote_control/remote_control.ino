@@ -1,213 +1,205 @@
+/*****************************
+ * Arduino Micro
+ * Sends button values to the
+ * robot.
+*****************************/
 #include <SoftwareSerial.h>
+
+#define left_int 19     //Pin d2
+#define right_int 18    //Pin d3
+#define trig_int 1      //Pin d7
+
+#define right_input 41  //Pin a5
+#define left_input 40   //Pin a4
+#define trig_input 27   //Pin d6
+
+#define joy_ry 39       //Pin a3
+#define joy_rx 38       //Pin a2
+#define joy_ly 37       //Pin a1
+#define joy_lx 36       //Pin a0
 
 //variables for controls storage
 
 //joystick
-int joy_1a = 0;
-int joy_1b = 0;
-int joy_1a_old = 0;
-int joy_1b_old = 0;
+int joy_ry_raw = 0;
+int joy_rx_raw = 0;
+int joy_ly_raw = 0;
+int joy_lx_raw = 0;
 
-int joy_2a = 0;
-int joy_2b = 0;
-int joy_2a_old = 0;
-int joy_2b_old = 0;
+int joy_ry_map = 0;
+int joy_rx_map = 0;
+int joy_ly_map = 0;
+int joy_lx_map = 0;
 
-char map_1a = 0;
-char map_1b = 0;
+u_char joy_ry_old = 0;
+u_char joy_rx_old = 0;
+u_char joy_ly_old = 0;
+u_char joy_lx_old = 0;
 
-char map_2a = 0;
-char map_2b = 0;
+int right_val = 0;
+int left_val = 0;
+int trig_val = 0;
 
-//buttons
-int button1;
-bool button1p;
+void read_right()
+{
+    right_val = analogRead(right_input);
+    if (right_val < 700)
+    {
+        //joystick button
+        Serial.write('A');
+        Serial.write('X');
+    }
+    else if(right_val < 780)
+    {
+        //right
+        Serial.write('B');
+        Serial.write('X');
+    }
+    else if(right_val < 863)
+    {
+        //left
+        Serial.write('C');
+        Serial.write('X');
+    }
+    else if(right_val < 950)
+    {
+        //top
+        Serial.write('D');
+        Serial.write('X');
+    }
+    else
+    {
+        //bottom
+        Serial.write('E');
+        Serial.write('X');
+    }
+}
+void read_left()
+{
+    left_val = analogRead(left_input);
+    if (left_val < 700)
+    {
+        //joystick button
+        Serial.write('F');
+        Serial.write('X');
+    }
+    else if(left_val < 780)
+    {
+        //bottom
+        Serial.write('G');
+        Serial.write('X');
+    }
+    else if(left_val < 863)
+    {
+        //left
+        Serial.write('H');
+        Serial.write('X');
+    }
+    else if(left_val < 950)
+    {
+        //top
+        Serial.write('I');
+        Serial.write('X');
+    }
+    else
+    {
+        //right
+        Serial.write('J');
+        Serial.write('X');
+    }
+}
+void read_trig()
+{
+    trig_val = analogRead(trig_input);
 
-int button2;
-bool button2p;
+    if(trig_val < 790)
+    {
+        //button one
+        Serial.write('K');
+        Serial.write('X');
+    }
+    else if(trig_val < 870)
+    {
+        //button two
+        Serial.write('L');
+        Serial.write('X');
+    }
+    else if(trig_val < 953)
+    {
+        //button three
+        Serial.write('M');
+        Serial.write('X');
+    }
+    else
+    {
+        //button four
+        Serial.write('N');
+        Serial.write('X');
+    }
+}
+void setup() 
+{
+    pinMode(joy_ry, INPUT); //joystick right y
+    pinMode(joy_rx, INPUT); //joystick right x
+    pinMode(joy_ly, INPUT); //joystick left y
+    pinMode(joy_lx, INPUT); //joystick left x
 
-int button3;
-bool button3p;
+    pinMode(right_input, INPUT);
+    pinMode(left_input, INPUT);
 
-int button4;
-bool button4p;
+    attachInterrupt(digitalPinToInterrupt(right_int), read_right, RISING);
+    attachInterrupt(digitalPinToInterrupt(left_int), read_left, RISING);
+    attachInterrupt(digitalPinToInterrupt(trig_int), read_trig, RISING);
 
-int button5;
-bool button5p;
-
-int button6;
-bool button6p;
-
-int button7;
-bool button7p;
-
-int button8;
-bool button8p;
-
-void setup() {
-  pinMode(A0, INPUT); //joystick
-  pinMode(A1, INPUT); //joystick
-  pinMode(A2, INPUT); //joystick
-  pinMode(A3, INPUT); //joystick
-  
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
-  pinMode(6, INPUT);
-  pinMode(11, INPUT);
-
-  pinMode(12, INPUT);
-  pinMode(13, INPUT);
-  pinMode(A4, INPUT);
-  pinMode(A5, INPUT);
-
-  Serial.begin(9600); //open serial port
-  Serial.println("Starting Send Code");
+    Serial.begin(9600); //open serial port
+    Serial.println("Starting Send Code");
 }
 
-void loop() {
-  button1 = digitalRead(6);		//left - left
-  button2 = digitalRead(2);		//left - up
-  button3 = digitalRead(A5);	//left - down
-  button4 = digitalRead(3);		//left - right
+void loop() 
+{
+    //read joystick values
+    joy_ry_raw = analogRead(joy_ry); 
+    joy_rx_raw = analogRead(joy_rx);
+    joy_ly_raw = analogRead(joy_ly);
+    joy_lx_raw = analogRead(joy_lx);
 
-  button5 = digitalRead(7);		//right - left
-  button6 = digitalRead(5);		//right - up
-  button7 = digitalRead(A4);	//right - down
-  button8 = digitalRead(4);		//right - right
-  
-  if (button1 == HIGH && button1p == false)
-  {
-      Serial.write('E');
-      Serial.write('X');
-      button1p = true;
-  }
-  if (button1== LOW && button1p == true)
-  {
-   button1p = false; 
-  }
-  
-  if (button2 == HIGH && button2p == false)
-  {
-      Serial.write('F');
-      Serial.write('X');
-      button2p = true;
-  }
-  if (button2== LOW && button2p == true)
-  {
-   button2p = false; 
-  }
+    if (abs(joy_ry_raw - joy_ry_old) > 5) //value has changed by +5/-5
+    {
+        joy_ry_map = map(joy_ry_raw, 0, 1024, 0, 254);
+        Serial.write('a');
+        Serial.write(joy_ry_map);
+        Serial.write('X');
+        joy_ry_old = joy_ry_raw;
+    }
 
-  if (button3 == HIGH && button3p == false)
-  {
-      Serial.write('G');
-      Serial.write('X');
-      button3p = true;
-  }
-  if (button3== LOW && button3p == true)
-  {
-   button3p = false; 
-  }
-  
-  if (button4 == HIGH && button4p == false)
-  {
-      Serial.write('H');
-      Serial.write('X');
-      button4p = true;
-  }
-  if (button4== LOW && button4p == true)
-  {
-   button4p = false; 
-  }
-  
-  if (button5 == HIGH && button5p == false)
-  {
-      Serial.write('I');
-      Serial.write('X');
-      button5p = true;
-  }
-  if (button5== LOW && button5p == true)
-  {
-   button5p = false; 
-  }
-  
-  if (button6 == HIGH && button6p == false)
-  {
-      Serial.write('J');
-      Serial.write('X');
-      button6p = true;
-  }
-  if (button6== LOW && button6p == true)
-  {
-   button6p = false; 
-  }
-  
-  if (button7 == HIGH && button7p == false)
-  {
-      Serial.write('K');
-      Serial.write('X');
-      button7p = true;
-  }
-  if (button7== LOW && button7p == true)
-  {
-   button7p = false; 
-  }
-  
-  if (button8 == HIGH && button8p == false)
-  {
-      Serial.write('L');
-      Serial.write('X');
-      button8p = true;
-  }
-  if (button8== LOW && button8p == true)
-  {
-   button8p = false; 
-  }
-  
-  //read joystick values
-  joy_1a = analogRead(A0); 
-  joy_1b = analogRead(A1);
-  joy_2a = analogRead(A2);
-  joy_2b = analogRead(A3);
+    if (abs(joy_rx_raw - joy_rx_old) > 5) //value has changed by +5/-5
+    {
+        joy_rx_map = map(joy_rx_raw, 0, 1024, 0, 254);
+        Serial.write('b');
+        Serial.write(joy_rx_map);
+        Serial.write('X');
+        joy_rx_old = joy_rx_raw;
+    }
 
-  
-  map_1a = map(joy_1a, 0, 1024, 0, 254);
-  if (abs(joy_1a - joy_1a_old) > 5) //value has changed by 10
-  {
-    Serial.write('a');
-    Serial.write(map_1a);
-    Serial.write('X');
-    joy_1a_old = joy_1a;
-  }
-  
-  map_1b = map(joy_1b, 0, 1024, 0, 254);
-  if (abs(joy_1b - joy_1b_old) > 5)
-  {
-    Serial.write('b');
-    Serial.write(map_1b);
-    Serial.write('X');
-    joy_1b_old = joy_1b;
-  }
-  
-  map_2a = map(joy_2a, 0, 1024, 0, 254);
-  if (abs(joy_2a - joy_2a_old) > 5)
-  {
-    Serial.write('c');
-    Serial.write(map_2a);
-    Serial.write('X');
-    joy_2a_old = joy_2a;
-  }
+    if (abs(joy_ly_raw - joy_ly_old) > 5) //value has changed by +5/-5
+    {
+        joy_ly_map = map(joy_ly_raw, 0, 1024, 0, 254);
+        Serial.write('c');
+        Serial.write(joy_ly_map);
+        Serial.write('X');
+        joy_ly_old = joy_ly_raw;
+    }
 
-  map_2b = map(joy_2b, 0, 1024, 0, 254);
-  if (abs(joy_2b - joy_2b_old) > 5)
-  {
-    Serial.write('d');
-    Serial.write(map_2b);
-    Serial.write('X');
-    joy_2b_old = joy_2b;
-  }
-  
-  
-  delay(50);
+    if (abs(joy_lx_raw - joy_lx_old) > 5) //value has changed by +5/-5
+    {
+        joy_lx_map = map(joy_lx_raw, 0, 1024, 0, 254);
+        Serial.write('d');
+        Serial.write(joy_lx_map);
+        Serial.write('X');
+        joy_lx_old = joy_lx_raw;
+    }
+
+    delay(50);
 }
 
 
