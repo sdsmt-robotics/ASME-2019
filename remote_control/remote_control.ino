@@ -44,25 +44,25 @@ void read_right()
 {
     Serial.println("Right button set pressed");
     right_val = analogRead(right_input);
-    if (right_val < 700)
+    if (right_val < 378)
     {
         //joystick button
         Serial.write('A');
         Serial.write('X');
     }
-    else if(right_val < 780)
+    else if(right_val < 768)
     {
         //right
         Serial.write('B');
         Serial.write('X');
     }
-    else if(right_val < 863)
+    else if(right_val < 799)
     {
         //left
         Serial.write('C');
         Serial.write('X');
     }
-    else if(right_val < 950)
+    else if(right_val < 855)
     {
         //top
         Serial.write('D');
@@ -79,25 +79,25 @@ void read_left()
 {
     Serial.println("Left button set pressed");
     left_val = analogRead(left_input);
-    if (left_val < 700)
+    if (left_val < 450)
     {
         //joystick button
         Serial.write('F');
         Serial.write('X');
     }
-    else if(left_val < 780)
+    else if(left_val < 890)
     {
         //bottom
         Serial.write('G');
         Serial.write('X');
     }
-    else if(left_val < 863)
+    else if(left_val < 933)
     {
         //left
         Serial.write('H');
         Serial.write('X');
     }
-    else if(left_val < 950)
+    else if(left_val < 978)
     {
         //top
         Serial.write('I');
@@ -166,7 +166,7 @@ void loop()
     joy_ly_raw = analogRead(joy_ly);
     joy_lx_raw = analogRead(joy_lx);
 
-    if (abs(joy_ry_raw - joy_ry_old) > 3) //value has changed by +5/-5
+    if (abs(joy_ry_raw - joy_ry_old) > 3) //value has changed by +3/-3
     {
         joy_ry_map = map(joy_ry_raw, 0, 1024, 0, 254);
         Serial.write('a');
@@ -180,7 +180,7 @@ void loop()
         Serial.println(joy_ry_old);
     }
     
-    if (abs(joy_rx_raw - joy_rx_old) > 3) //value has changed by +5/-5
+    if (abs(joy_rx_raw - joy_rx_old) > 3) //value has changed by +3/-3
     {
         joy_rx_map = map(joy_rx_raw, 0, 1024, 0, 254);
         Serial.write('b');
@@ -194,7 +194,7 @@ void loop()
         Serial.println(joy_rx_old);
     }
     
-    if (abs(joy_ly_raw - joy_ly_old) > 3) //value has changed by +5/-5
+    if (abs(joy_ly_raw - joy_ly_old) > 3) //value has changed by +3/-3
     {
         joy_ly_map = map(joy_ly_raw, 0, 1024, 0, 254);
         Serial.write('c');
@@ -208,7 +208,7 @@ void loop()
         Serial.println(joy_ly_old);
     }
 
-    if (abs(joy_lx_raw - joy_lx_old) > 3) //value has changed by +5/-5
+    if (abs(joy_lx_raw - joy_lx_old) > 3) //value has changed by +3/-3
     {
         joy_lx_map = map(joy_lx_raw, 0, 1024, 0, 254);
         Serial.write('d');
