@@ -79,25 +79,25 @@ void read_left()
 {
     Serial.println("Left button set pressed");
     left_val = analogRead(left_input);
-    if (left_val < 450)
+    if (left_val < 378)
     {
         //joystick button
         Serial.write('F');
         Serial.write('X');
     }
-    else if(left_val < 890)
+    else if(left_val < 768)
     {
         //bottom
         Serial.write('G');
         Serial.write('X');
     }
-    else if(left_val < 933)
+    else if(left_val < 799)
     {
         //left
         Serial.write('H');
         Serial.write('X');
     }
-    else if(left_val < 978)
+    else if(left_val < 855)
     {
         //top
         Serial.write('I');
@@ -147,7 +147,7 @@ void setup()
     pinMode(joy_ly, INPUT); //joystick left y
     pinMode(joy_lx, INPUT); //joystick left x
 
-    pinMode(right_input, INPUT);
+    //pinMode(right_input, INPUT);
     pinMode(left_input, INPUT);
 
     attachInterrupt(1, read_right, RISING);
