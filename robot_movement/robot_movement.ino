@@ -1,16 +1,35 @@
+/*****************************
+ * Arduino Due
+ * Contains the code for the
+ * robot
+*****************************/
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <mcp_can.h>
 
+/*****************************
+ * Defines
+*****************************/
+//SPX Victor Motor Controllers
 #define controller_one 4
 #define controller_two 2
 #define controller_three 3 
 #define controller_four 1
+
+//Max speed for robot movement
 #define MAX_SPD 500.0
 
-//pin for the CS
-const int spiCSPin = 53;
-MCP_CAN CAN(spiCSPin);
+//cs pin for SPI and CAN Bus
+#define spiCSPin 53
+
+//Address for control on RoboClaw
+//motor controllers
+#define address 0x80
+
+/*****************************
+ * Globals
+*****************************/
+
 // Verticle and Horizontal Levels
 int verL, horL, rotL; 
 //Motor Input Levels
@@ -32,15 +51,11 @@ const int CALIBRATION_FL_REV = 32;
 const int CALIBRATION_BR_FOR = 50;
 const int CALIBRATION_BR_REV = 40;
 
-//build the control CANbus frame.  The first three bytes is the demand value, 
-//which typically is the output value [-1023,+1023]
-
 //data for the ENABLE frame
 unsigned char enable[8] = {1, 0, 0, 0, 0, 0, 0, 0};
 
 //Recieving byte
 byte incomingByte = 0;
-bool shooting = false;
 
 //Storage for bytes for decoding
 byte incoming_command[2];
@@ -57,61 +72,67 @@ int axis = 0;
 int timer = 0;
 int oldspeed;
 
+/*****************************
+ * Object Declaration
+*****************************/
+MCP_CAN CAN(spiCSPin);
+
 void setup()
 {
-  Serial.begin(115200);
+    Serial.begin(115200);
 
-  Serial.println("initializing...");
+    Serial.println("initializing CAN Bus...");
 
-  //set the baudrate and let it know we are using the 8MHz oscilator on the CAN module
+    //set the baudrate and let it know we are using the 8MHz oscilator on the CAN module
     while (CAN_OK != CAN.begin(CAN_1000KBPS, MCP_8MHz))
     {
         Serial.println("CAN BUS init Failed");
         delay(100);
     }
-    Serial.println("CAN BUS Shield Init OK!");
-  Serial1.begin(9600);
-  Serial.println("Starting Recieve Code");
+    Serial.println("CAN BUS Init OK!");
+
+    Serial1.begin(9600);
+    Serial.println("Starting Recieve Code");
 }
 
 void check_command()
 {
-  //incoming_command[0] is the encoded value being converted to decimal
-  if (incoming_command[0] <= 100 && incoming_command[0] >= 97)
-  {
-    axis = incoming_command[0];
-    current_vals[(axis - 97)] = map(int(incoming_command[1]), 0, 200, -500, 500);
-    Serial.print("Joystick ");
-    Serial.print(incoming_command[0], HEX);
-    Serial.print(" ");
-    Serial.print(map(incoming_command[1], 0, 200, -500, 500));
-    Serial.println();
-  }
+//incoming_command[0] is the encoded value being converted to decimal
+    if (incoming_command[0] <= 100 && incoming_command[0] >= 97)
+    {
+        axis = incoming_command[0];
+        current_vals[(axis - 97)] = map(int(incoming_command[1]), 0, 200, -500, 500);
+        Serial.print("Joystick ");
+        Serial.print(incoming_command[0], HEX);
+        Serial.print(" ");
+        Serial.print(map(incoming_command[1], 0, 200, -500, 500));
+        Serial.println();
+    }
 }
 
-int SpeedControl(double SPD) //Creates a exponential growth speed
+int SpeedControl(double spd) //Creates a exponential growth speed
 {
-  int NewSPD;
-  double temp2 = SPD / 500.0;
-  double temp = pow(temp2,2);
-  NewSPD = temp * SPD;
-  return NewSPD;
+    int NewSPD;
+    double temp2 = spd / MAX_SPD;
+    double temp = pow(temp2,2);
+    NewSPD = temp * spd;
+    return NewSPD;
 }
 
 void byte_encoder(unsigned char data[8], int SPD) //Allows Can Bus to Read speeds.
 {
-  //encode output into bytes
-  byte first_byte = (byte)(SPD >> 0x10);
-  byte second_byte = (byte)(SPD >> 0x08);
-  byte third_byte = (byte)(SPD);
+    //encode output into bytes
+    byte first_byte = (byte)(SPD >> 0x10);
+    byte second_byte = (byte)(SPD >> 0x08);
+    byte third_byte = (byte)(SPD);
 
-  //build the control CANbus frame.  The first three bytes is the demand value, 
-  //which typically is the output value [-1023,+1023]
+    //build the control CANbus frame.  The first three bytes is the demand value, 
+    //which typically is the output value [-1023,+1023]
 
-  //data for the CONTROL frame
-  data[0] = first_byte;
-  data[1] = second_byte;
-  data[2] = third_byte;
+    //data for the CONTROL frame
+    data[0] = first_byte;
+    data[1] = second_byte;
+    data[2] = third_byte;
 }
 
 
@@ -170,10 +191,10 @@ void loop()
     BRs -= CALIBRATION_BR_REV;
   }
 
-  FRs = constrain(FRs, -500, 500); //Restricts The output to motor
-  BRs = constrain(BRs, -500, 500);
-  FLs = constrain(FLs, -500, 500);
-  BLs = constrain(BLs, -500, 500);
+  FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
+  BRs = constrain(BRs, -MAX_SPD, MAX_SPD);
+  FLs = constrain(FLs, -MAX_SPD, MAX_SPD);
+  BLs = constrain(BLs, -MAX_SPD, MAX_SPD);
 
   //Outputs the speeds to each motor.
   byte_encoder(dataFL, FLs);
@@ -215,7 +236,6 @@ void loop()
       current_vals[1] = 0;
       current_vals[2] = 0;
       current_vals[3] = 0;
-      
     }
     timer = 0;
   }
