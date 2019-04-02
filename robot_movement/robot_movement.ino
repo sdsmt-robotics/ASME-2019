@@ -1,15 +1,21 @@
-/*****************************
+/******************************************************************************
  * Arduino Due
- * Contains the code for the
- * robot
-*****************************/
+ * Contains the code for the robot's main controller
+******************************************************************************/
+/******************************************************************************
+ * TODO
+ *      -remove delay
+ *      -change deadman's to
+ *          use millis()
+ *      -add toggle for debug messages
+******************************************************************************/
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <mcp_can.h>
 
-/*****************************
+/******************************************************************************
  * Defines
-*****************************/
+******************************************************************************/
 //SPX Victor Motor Controllers
 #define controller_one 4
 #define controller_two 2
@@ -24,11 +30,14 @@
 
 //Address for control on RoboClaw
 //motor controllers
-#define address 0x80
+#define rc_lift 0x80
+#define rc_corral 0x81
+#define rc_door_right 0x82
+#define rc_door_left 0x83
 
-/*****************************
+/******************************************************************************
  * Globals
-*****************************/
+******************************************************************************/
 
 // Verticle and Horizontal Levels
 int verL, horL, rotL; 
@@ -72,13 +81,19 @@ int axis = 0;
 int timer = 0;
 int oldspeed;
 
-/*****************************
+/******************************************************************************
  * Object Declaration
-*****************************/
+******************************************************************************/
+
+//create CAN object
 MCP_CAN CAN(spiCSPin);
+
+//create roboclaw object
+RoboClaw rc_driver(&Serial3, 10000);
 
 void setup()
 {
+    //pc debug
     Serial.begin(115200);
 
     Serial.println("initializing CAN Bus...");
@@ -89,10 +104,14 @@ void setup()
         Serial.println("CAN BUS init Failed");
         delay(100);
     }
-    Serial.println("CAN BUS Init OK!");
-
-    Serial1.begin(9600);
+    Serial.println("CAN BUS Init OK!");   
+    
+    //xBee communication
     Serial.println("Starting Recieve Code");
+    Serial1.begin(9600);
+ 
+    //RoboClaw
+    rc_driver,begin(38400);
 }
 
 void check_command()
@@ -107,6 +126,62 @@ void check_command()
         Serial.print(" ");
         Serial.print(map(incoming_command[1], 0, 200, -500, 500));
         Serial.println();
+    }
+    else if(incoming_command[0] == 'A')
+    {
+        //Right thumb button
+    }
+    else if(incoming_command[0] == 'B')
+    {
+        //right bank, right button
+    }
+    else if(incoming_command[0] == 'C')
+    {
+        //right bank, left button
+    }
+    else if(incoming_command[0] == 'D')
+    {
+        //right bank, top button
+    }
+    else if(incoming_command[0] == 'E')
+    {
+        //right bank, bottom button
+    }
+    else if(incoming_command[0] == 'F')
+    {
+        //left thumb button
+    }
+    else if(incoming_command[0] == 'G')
+    {
+        //left bank, bottom button
+    }
+    else if(incoming_command[0] == 'H')
+    {
+        //left bank, left button
+    }
+    else if(incoming_command[0] == 'I')
+    {
+        //left bank, top button
+    }
+    else if(incoming_command[0] == 'J')
+    {
+        //left bank, right button
+    }
+    else if(incoming_command[0] == 'K')
+    {
+        //top bank, 
+    }
+    else if(incoming_command[0] == 'L')
+    {
+        //top bank, 
+    }
+    else if(incoming_command[0] == 'M')
+    {
+        //top bank, 
+    }
+    else if(incoming_command[0] == 'N')
+    {
+        //top bank, 
     }
 }
 
@@ -138,107 +213,107 @@ void byte_encoder(unsigned char data[8], int SPD) //Allows Can Bus to Read speed
 
 void loop()
 {
-  if (Serial1.available() > 0)
-  {
-    incomingByte = Serial1.read();
-    if (incomingByte == 0x58)
+    if (Serial1.available() > 0)
     {
-      //Serial.println();
-      check_command();
-      queue_len = 0;
-    }
-    else
-    {
-      if (queue_len >= 2)
-      {
-        queue_len = 0;
-      }
-      incoming_command[queue_len] = incomingByte;
-      queue_len++;
-      //Serial.print(incomingByte, HEX);
-     // Serial.print(" ");
-    }
+        incomingByte = Serial1.read();
+        if (incomingByte == 0x58)
+        {
+            //Serial.println();
+            check_command();
+            queue_len = 0;
+        }
+        else
+        {
+            if (queue_len >= 2)
+            {
+                queue_len = 0;
+            }
+            incoming_command[queue_len] = incomingByte;
+            queue_len++;
+            //Serial.print(incomingByte, HEX);
+            // Serial.print(" ");
+        }
     //Serial.println(incomingByte, HEX);
-  }
-
-  verL = SpeedControl(current_vals[1]); //Runs function to create speed components
-  //Serial.println(verL);
-  horL = SpeedControl(current_vals[2]);
-  //Serial.println(horL);
-  rotL = SpeedControl(current_vals[3]);
-  //Serial.println(rotL);
-  
-  FRs = -verL - horL - rotL; //Creates the speeds for each motor.
-  BRs = -verL + horL - rotL;
-  FLs = verL - horL - rotL;
-  BLs = verL + horL - rotL; 
-
-  if (FLs > 0)
-  {
-    FLs += CALIBRAITON_FL_FOR;
-  }
-  if (FRs < 0)
-  {
-    FLs -= CALIBRATION_FL_REV;
-  }
-
-  if (BRs > 0)
-  {
-    BRs += CALIBRATION_BR_FOR;
-  }
-  if (BRs < 0)
-  {
-    BRs -= CALIBRATION_BR_REV;
-  }
-
-  FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
-  BRs = constrain(BRs, -MAX_SPD, MAX_SPD);
-  FLs = constrain(FLs, -MAX_SPD, MAX_SPD);
-  BLs = constrain(BLs, -MAX_SPD, MAX_SPD);
-
-  //Outputs the speeds to each motor.
-  byte_encoder(dataFL, FLs);
-  CAN.sendMsgBuf(CONTROL | controller_one | 0x01040000, 1, 8, dataFL); //0x01040000 for Victor, 0x02040000 for Talon
-  Serial.print(FLs);
-  Serial.print("  ");
-  
-  byte_encoder(dataFR, FRs);
-  CAN.sendMsgBuf(CONTROL | controller_two | 0x01040000, 1, 8, dataFR); //0x01040000 for Victor, 0x02040000 for Talon
-  Serial.print(FRs);
-  Serial.print("  ");
-  
-  byte_encoder(dataBR, BRs);
-  CAN.sendMsgBuf(CONTROL | controller_three | 0x01040000, 1, 8, dataBL); //0x01040000 for Victor, 0x02040000 for Talon
-  Serial.print(BLs);
-  Serial.print("  ");
-  
-  byte_encoder(dataBL, BLs);
-  CAN.sendMsgBuf(CONTROL | controller_four | 0x01040000, 1, 8, dataBR); //0x01040000 for Victor, 0x02040000 for Talon
-  Serial.print(BRs); 
-  
-  CAN.sendMsgBuf(ENABLE, 1, 8, enable);
-  
-  Serial.print("  ");
-  Serial.print(timer);
-  Serial.print("  ");
-  Serial.println(oldspeed);
-
-  //Deadman's switch for bot movement
-  if (timer == 0)
-  {
-    oldspeed = FLs;
-  }
-  timer = timer + 1;
-  if (timer > 100)
-  {
-    if (oldspeed == FLs)
-    {
-      current_vals[1] = 0;
-      current_vals[2] = 0;
-      current_vals[3] = 0;
     }
+
+    verL = SpeedControl(current_vals[1]); //Runs function to create speed components
+    //Serial.println(verL);
+    horL = SpeedControl(current_vals[2]);
+    //Serial.println(horL);
+    rotL = SpeedControl(current_vals[3]);
+    //Serial.println(rotL);
+
+    FRs = -verL - horL - rotL; //Creates the speeds for each motor.
+    BRs = -verL + horL - rotL;
+    FLs = verL - horL - rotL;
+    BLs = verL + horL - rotL; 
+
+    if (FLs > 0)
+    {
+        FLs += CALIBRAITON_FL_FOR;
+    }
+    if (FRs < 0)
+    {
+        FLs -= CALIBRATION_FL_REV;
+    }
+
+    if (BRs > 0)
+    {
+        BRs += CALIBRATION_BR_FOR;
+    }
+    if (BRs < 0)
+    {
+        BRs -= CALIBRATION_BR_REV;
+    }
+
+    FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
+    BRs = constrain(BRs, -MAX_SPD, MAX_SPD);
+    FLs = constrain(FLs, -MAX_SPD, MAX_SPD);
+    BLs = constrain(BLs, -MAX_SPD, MAX_SPD);
+
+    //Outputs the speeds to each motor.
+    byte_encoder(dataFL, FLs);
+    CAN.sendMsgBuf(CONTROL | controller_one | 0x01040000, 1, 8, dataFL); //0x01040000 for Victor, 0x02040000 for Talon
+    Serial.print(FLs);
+    Serial.print("  ");
+
+    byte_encoder(dataFR, FRs);
+    CAN.sendMsgBuf(CONTROL | controller_two | 0x01040000, 1, 8, dataFR); //0x01040000 for Victor, 0x02040000 for Talon
+    Serial.print(FRs);
+    Serial.print("  ");
+
+    byte_encoder(dataBR, BRs);
+    CAN.sendMsgBuf(CONTROL | controller_three | 0x01040000, 1, 8, dataBL); //0x01040000 for Victor, 0x02040000 for Talon
+    Serial.print(BLs);
+    Serial.print("  ");
+
+    byte_encoder(dataBL, BLs);
+    CAN.sendMsgBuf(CONTROL | controller_four | 0x01040000, 1, 8, dataBR); //0x01040000 for Victor, 0x02040000 for Talon
+    Serial.print(BRs); 
+
+    CAN.sendMsgBuf(ENABLE, 1, 8, enable);
+
+    Serial.print("  ");
+    Serial.print(timer);
+    Serial.print("  ");
+    Serial.println(oldspeed);
+
+    //Deadman's switch for bot movement
+    if (timer == 0)
+    {
+        oldspeed = FLs;
+    }
+    timer = timer + 1;
+    if (timer > 100)
+    {
+        if (oldspeed == FLs)
+        {
+            current_vals[1] = 0;
+            current_vals[2] = 0;
+            current_vals[3] = 0;
+        }
     timer = 0;
-  }
- 
-  delay(20);
+    }
+
+    delay(20);
 }
