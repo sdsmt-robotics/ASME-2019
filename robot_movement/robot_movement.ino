@@ -13,6 +13,7 @@
 #include <SPI.h>
 #include <mcp_can.h>
 #include "RoboClaw.h"
+#include "LedStrip.h"
 /******************************************************************************
  * Defines
 ******************************************************************************/
@@ -103,6 +104,9 @@ unsigned long millis_corral = 0;
 unsigned long delay_corral = 1500;
 unsigned long delay_door = 1500;
 
+//led contro
+int brightness = 128;
+
 /******************************************************************************
  * Object Declaration
 ******************************************************************************/
@@ -115,14 +119,17 @@ MCP_CAN CAN(spiCSPin);
 RoboClaw rc_driver_door(&Serial1, 10000);
 RoboClaw rc_driver_corral(&Serial2, 10000);
 
+//creat light control object
+LedStrip ledStrip(5, 6, 7);
 
 void setup()
 {
     //pc debug
     Serial.begin(9600);
 
+    ledStrip.setBrightness(brightness);
+    ledStrip.setColorHEX(LedStrip::Red);
     //Serial.println("initializing CAN Bus...");
-
     //set the baudrate and let it know we are using the 8MHz oscilator on the CAN module
     while (CAN_OK != CAN.begin(CAN_1000KBPS, MCP_8MHz))
     {
@@ -138,6 +145,8 @@ void setup()
     //RoboClaw
     rc_driver_door.begin(38400);
     rc_driver_corral.begin(38400);
+
+    ledStrip.setColorHEX(LedStrip::Blue);
 }
 
 void check_command()
@@ -199,6 +208,7 @@ void check_command()
         //corral up
         rc_driver_corral.ForwardM1(rc_lift, 80);
         rc_driver_corral.ForwardM2(rc_lift, 80);
+        ledStrip.setColorHEX(LedStrip::Blue);
         
         corral_moving = true;
         corral_moving = true;
@@ -211,6 +221,7 @@ void check_command()
         //corral down
         rc_driver_corral.BackwardM1(rc_lift, 127);
         rc_driver_corral.BackwardM2(rc_lift, 127);
+        ledStrip.setColorHEX(LedStrip::Red);
 
         corral_moving = true;
 
