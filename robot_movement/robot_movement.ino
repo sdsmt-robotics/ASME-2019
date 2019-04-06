@@ -280,28 +280,10 @@ void loop()
     FLs = -(verL - horL - rotL);
     BLs = -(verL + horL - rotL); 
 
-    if (FLs > 0)
-    {
-        FLs += CALIBRAITON_FL_FOR;
-    }
-    if (FRs < 0)
-    {
-        FLs -= CALIBRATION_FL_REV;
-    }
-
-    if (BRs > 0)
-    {
-        BRs += CALIBRATION_BR_FOR;
-    }
-    if (BRs < 0)
-    {
-        BRs -= CALIBRATION_BR_REV;
-    }
-
-    FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
+    /*FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
     BRs = constrain(BRs, -MAX_SPD, MAX_SPD);
     FLs = constrain(FLs, -MAX_SPD, MAX_SPD);
-    BLs = constrain(BLs, -MAX_SPD, MAX_SPD);
+    BLs = constrain(BLs, -MAX_SPD, MAX_SPD);*/
 
     //Outputs the speeds to each motor.
     byte_encoder(dataFL, FLs);
