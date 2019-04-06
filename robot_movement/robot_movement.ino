@@ -209,8 +209,8 @@ void check_command()
     {
         //left bank, bottom button
         //corral down
-        rc_driver_corral.BackwardM1(rc_lift, 80);
-        rc_driver_corral.BackwardM2(rc_lift, 80);
+        rc_driver_corral.BackwardM1(rc_lift, 127);
+        rc_driver_corral.BackwardM2(rc_lift, 127);
 
         corral_moving = true;
 
