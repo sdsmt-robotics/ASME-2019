@@ -104,6 +104,15 @@ unsigned long millis_corral = 0;
 unsigned long delay_corral = 1500;
 unsigned long delay_door = 1500;
 
+unsigned long millis_led = 0;
+int led_r = 0;
+int led_g = 255;
+int led_b = 125;
+
+bool r_up = true;
+bool g_up = false;
+bool b_up = true;
+
 //led contro
 int brightness = 128;
 
@@ -147,6 +156,8 @@ void setup()
     rc_driver_corral.begin(38400);
 
     ledStrip.setColorHEX(LedStrip::Blue);
+
+    millis_led = millis();
 }
 
 void check_command()
@@ -279,12 +290,18 @@ void loop()
        Serial.println(incomingByte);
     }
 
-    verL = SpeedControl(current_vals[1]); //Runs function to create speed components
+    /*verL = SpeedControl(current_vals[1]); //Runs function to create speed components
     //Serial.println(verL);
     horL = SpeedControl(current_vals[2]);
     //Serial.println(horL);
     rotL = -(SpeedControl(current_vals[3])/7);
-    //Serial.println(rotL);
+    //Serial.println(rotL);*/
+
+    verL = current_vals[1]; //Runs function to create speed components
+    //Serial.println(verL);
+    horL = current_vals[2];
+    //Serial.println(horL);
+    rotL = -(current_vals[3]/4);
 
     FRs = -(-verL - horL - rotL); //Creates the speeds for each motor.
     BRs = -(-verL + horL - rotL);
@@ -309,10 +326,10 @@ void loop()
         BRs -= CALIBRATION_BR_REV;
     }
 
-    FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
+    /*FRs = constrain(FRs, -MAX_SPD, MAX_SPD); //Restricts The output to motor
     BRs = constrain(BRs, -MAX_SPD, MAX_SPD);
     FLs = constrain(FLs, -MAX_SPD, MAX_SPD);
-    BLs = constrain(BLs, -MAX_SPD, MAX_SPD);
+    BLs = constrain(BLs, -MAX_SPD, MAX_SPD);*/
 
     //Outputs the speeds to each motor.
     byte_encoder(dataFL, FLs);
@@ -346,6 +363,90 @@ void loop()
 
         rc_driver_corral.ForwardM1(rc_lift, 0);
         rc_driver_corral.ForwardM2(rc_lift, 0);
+    }
+
+    if(millis_current - millis_led > 5)
+    {
+        if(r_up)
+        {
+            if(led_r == 255)
+            {
+                led_r-=5;
+                r_up = false;
+            }
+            else
+            {
+                led_r+=5;
+            }
+        }
+        else
+        {
+            if(led_r == 0)
+            {
+                led_r+=5;
+                r_up = true;
+            }
+            else
+            {
+                led_r-=5;
+            }
+        }
+
+
+//Blue        
+        if(b_up)
+        {
+            if(led_b == 255)
+            {
+                led_b-=5;
+                b_up = false;
+            }
+            else
+            {
+                led_b+=5;
+            }
+        }
+        else
+        {
+            if(led_b == 0)
+            {
+                led_b+=5;
+                b_up = true;
+            }
+            else
+            {
+                led_b-=5;
+            }
+        }
+//green
+
+        if(g_up)
+        {
+            if(led_g == 255)
+            {
+                led_g-=5;
+                g_up = false;
+            }
+            else
+            {
+                led_g+=5;
+            }
+        }
+        else
+        {
+            if(led_g == 0)
+            {
+                led_g+=5;
+                g_up = true;
+            }
+            else
+            {
+                led_g-=5;
+            }
+        }
+
+        ledStrip.setColorRGB(led_r, led_g, led_b);
+        millis_led = millis();
     }
 /*
     //Deadman's switch for bot movement
