@@ -1,6 +1,10 @@
 /******************************************************************************
  * Arduino Due
  * Contains the code for the robot's main controller
+ * 
+ * Can Bus Library - https://github.com/Seeed-Studio/CAN_BUS_Shield
+ * LED Strip Library - https://github.com/sdsmt-robotics/ASME-2019/tree/master/led_strip_control
+ * RoboClaw Library - https://www.basicmicro.com/downloads
 ******************************************************************************/
 /******************************************************************************
  * TODO
@@ -26,6 +30,7 @@
 
 //Max speed for robot movement
 #define MAX_SPD 375.0
+//#define MAX_SPD 10.0
 
 //cs pin for SPI and CAN Bus
 #define spiCSPin 53
@@ -87,6 +92,9 @@ int queue_len = 0;
 //101-108 are button values
 int current_vals[12];
 
+unsigned long delay_killswitch = 2500;
+unsigned long millis_lastmove = 0;
+
 int axis = 0;
 
 //Test Time
@@ -104,14 +112,18 @@ unsigned long millis_corral = 0;
 unsigned long delay_corral = 1500;
 unsigned long delay_door = 1500;
 
+bool rainbow = true;
 unsigned long millis_led = 0;
-int led_r = 0;
-int led_g = 255;
-int led_b = 125;
+unsigned long delay_fixed_led = 1500;
+unsigned long millis_fixed_led = 0;
+int led_r = 255;
+int led_g = 0;
+int led_b = 0;
 
-bool r_up = true;
-bool g_up = false;
-bool b_up = true;
+short led_change_rate = 10;
+short r_rate = 0;
+short g_rate = 1;
+short b_rate = 0;
 
 //led contro
 int brightness = 128;
@@ -150,14 +162,42 @@ void setup()
     //xBee communication
     Serial.println("Starting Recieve Code");
     Serial3.begin(9600);
+    // Clean up the xBee buffer so to remove lag.
+    while ( Serial3.available() ) {
+      Serial3.read();
+    }
  
     //RoboClaw
     rc_driver_door.begin(38400);
     rc_driver_corral.begin(38400);
 
-    ledStrip.setColorHEX(LedStrip::Blue);
+    millis_current = millis();
+    millis_lastmove = millis();
+
+    fix_led_color(0,255,255);
 
     millis_led = millis();
+}
+
+bool fix_led_color(int red, int green, int blue)
+{
+  // Only one fixed color at a time
+  if(millis_fixed_led>0) {
+    Serial.println("Already fixed color!");
+    return false;
+  }
+  
+  Serial.print("Fixing color to ");
+  Serial.print(red);
+  Serial.print(", ");
+  Serial.print(green);
+  Serial.print(", ");
+  Serial.print(blue);
+  Serial.println("!");
+  
+  millis_fixed_led = millis_current;
+  ledStrip.setColorRGB(red, green, blue);
+  return true;
 }
 
 void check_command()
@@ -167,11 +207,13 @@ void check_command()
     {
         axis = incoming_command[0];
         current_vals[(axis - 97)] = map(int(incoming_command[1]), 0, 200, -500, 500);
-        //Serial.print("Joystick ");
-        //Serial.print(incoming_command[0], HEX);
-        //Serial.print(" ");
-        //Serial.print(map(incoming_command[1], 0, 200, -500, 500));
-        //Serial.println();
+        millis_lastmove = millis();
+        
+        Serial.print("Joystick ");
+        Serial.print(incoming_command[0], HEX);
+        Serial.print(" ");
+        Serial.print(map(incoming_command[1], 0, 200, -500, 500));
+        Serial.println();
     }
     else if(incoming_command[0] == 'L')
     {
@@ -219,7 +261,7 @@ void check_command()
         //corral up
         rc_driver_corral.ForwardM1(rc_lift, 80);
         rc_driver_corral.ForwardM2(rc_lift, 80);
-        ledStrip.setColorHEX(LedStrip::Blue);
+        fix_led_color(0,0,255);
         
         corral_moving = true;
         corral_moving = true;
@@ -232,12 +274,15 @@ void check_command()
         //corral down
         rc_driver_corral.BackwardM1(rc_lift, 127);
         rc_driver_corral.BackwardM2(rc_lift, 127);
-        ledStrip.setColorHEX(LedStrip::Red);
+        fix_led_color(255,0,0);
 
         corral_moving = true;
 
         millis_corral = millis();
         
+    } else {
+      Serial.print("Other CMD: ");
+      Serial.println(incoming_command[0]);
     }
 }
 
@@ -266,10 +311,59 @@ void byte_encoder(unsigned char data[8], int SPD) //Allows Can Bus to Read speed
     data[2] = third_byte;
 }
 
-
-void loop()
+void rainbow_led()
 {
-    if (Serial3.available() > 0)
+  if(!rainbow) return;
+  if(millis_current - millis_led > 5)
+    {
+        led_r += r_rate*led_change_rate;
+        led_g += g_rate*led_change_rate;
+        led_b += b_rate*led_change_rate;
+
+        if(led_r >= 255 && r_rate > 0) {
+          led_r = 255;
+          r_rate = 0;
+          g_rate = 0;
+          b_rate = -1;
+        } else if(led_r <= 0 && r_rate < 0) {
+          led_r = 0;
+          r_rate = 0;
+          g_rate = 0;
+          b_rate = 1;
+        }
+
+        if(led_g >= 255 && g_rate > 0) {
+          led_g = 255;
+          r_rate = -1;
+          g_rate = 0;
+          b_rate = 0;
+        } else if(led_g <= 0 && g_rate < 0) {
+          led_g = 0;
+          r_rate = 1;
+          g_rate = 0;
+          b_rate = 0;
+        }
+
+        if(led_b >= 255 && b_rate > 0) {
+          led_b = 255;
+          r_rate = 0;
+          g_rate = -1;
+          b_rate = 0;
+        } else if(led_b <= 0 && b_rate < 0) {
+          led_b = 0;
+          r_rate = 0;
+          g_rate = 1;
+          b_rate = 0;
+        }
+
+        ledStrip.setColorRGB(led_r, led_g, led_b);
+        millis_led = millis();
+    }
+}
+
+void readFromXBee()
+{
+  while (Serial3.available() > 0)
     {
         incomingByte = Serial3.read();
         if (incomingByte == 0x58)
@@ -289,6 +383,11 @@ void loop()
         }
        Serial.println(incomingByte);
     }
+}
+
+void loop()
+{
+    readFromXBee();
 
     /*verL = SpeedControl(current_vals[1]); //Runs function to create speed components
     //Serial.println(verL);
@@ -297,8 +396,10 @@ void loop()
     rotL = -(SpeedControl(current_vals[3])/7);
     //Serial.println(rotL);*/
 
+    //Serial.print("VH speed: ");
     verL = current_vals[1]; //Runs function to create speed components
-    //Serial.println(verL);
+    //Serial.print(verL);
+    //Serial.print(" - ");
     horL = current_vals[2];
     //Serial.println(horL);
     rotL = -(current_vals[3]/4);
@@ -312,7 +413,7 @@ void loop()
     {
         FLs += CALIBRAITON_FL_FOR;
     }
-    if (FRs < 0)
+    if (FLs < 0)
     {
         FLs -= CALIBRATION_FL_REV;
     }
@@ -364,91 +465,28 @@ void loop()
         rc_driver_corral.ForwardM1(rc_lift, 0);
         rc_driver_corral.ForwardM2(rc_lift, 0);
     }
-
-    if(millis_current - millis_led > 5)
+    // Reduce fixed led time, and if done, clear fixed led
+    if(millis_fixed_led>0)
     {
-        if(r_up)
-        {
-            if(led_r == 255)
-            {
-                led_r-=5;
-                r_up = false;
-            }
-            else
-            {
-                led_r+=5;
-            }
-        }
-        else
-        {
-            if(led_r == 0)
-            {
-                led_r+=5;
-                r_up = true;
-            }
-            else
-            {
-                led_r-=5;
-            }
-        }
-
-
-//Blue        
-        if(b_up)
-        {
-            if(led_b == 255)
-            {
-                led_b-=5;
-                b_up = false;
-            }
-            else
-            {
-                led_b+=5;
-            }
-        }
-        else
-        {
-            if(led_b == 0)
-            {
-                led_b+=5;
-                b_up = true;
-            }
-            else
-            {
-                led_b-=5;
-            }
-        }
-//green
-
-        if(g_up)
-        {
-            if(led_g == 255)
-            {
-                led_g-=5;
-                g_up = false;
-            }
-            else
-            {
-                led_g+=5;
-            }
-        }
-        else
-        {
-            if(led_g == 0)
-            {
-                led_g+=5;
-                g_up = true;
-            }
-            else
-            {
-                led_g-=5;
-            }
-        }
-
-        ledStrip.setColorRGB(led_r, led_g, led_b);
-        millis_led = millis();
+      if(millis_current - millis_fixed_led > delay_fixed_led) 
+      {
+        millis_fixed_led = 0;
+      }
+    } else {
+      rainbow_led();
     }
-/*
+    // kill switch
+    if((current_vals[0]!=0 || current_vals[1]!=0 || current_vals[2]!=0 || current_vals[3]!=0) && (millis_current - millis_lastmove) > delay_killswitch) {
+      Serial.print("Killing all movement, it's been more than ");
+      Serial.print(delay_killswitch);
+      Serial.println("ms since last controller movement");
+      for(int i=0;i<4;i++) {
+        if(current_vals[i] != 0) {
+          current_vals[i] = 0;
+        }
+      }
+    }
+/*  }
     //Deadman's switch for bot movement
     if (timer == 0)
     {
@@ -466,5 +504,5 @@ void loop()
     timer = 0;
     }
 */
-    delay(20);
+    //delay(20);
 }
